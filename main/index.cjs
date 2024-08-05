@@ -1,7 +1,11 @@
+/**
+ * Trailing comments are only assigned to the code that is on the same line as themselves.
+ * Leading comments that are block quotes are assigned to the code that is directly below them.
+ */
 const parser = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 const generate = require('@babel/generator').default;
-const types = require('@babel/types');
+// const types = require('@babel/types');
 const fs = require('fs');
 const path = require('path');
 
@@ -53,13 +57,29 @@ class FileProcessor {
             if (nodePath.node.leadingComments) {
               nodePath.node.leadingComments =
                 nodePath.node.leadingComments.filter((comment) => {
-                  !comment.value.includes('#DOCMAP_v0.0.1:');
+                  if (
+                    comment.type === 'CommentBlock' &&
+                    comment.value.includes('#DOCMAP_v0.0.1:')
+                  ) {
+                    const location = nodePath.node.loc.start;
+                    const locationString = `Line: ${location.line}, Column: ${location.column}`;
+                    return false;
+                  }
+                  return true;
                 });
             }
             if (nodePath.node.trailingComments) {
               nodePath.node.trailingComments =
                 nodePath.node.trailingComments.filter((comment) => {
-                  !comment.value.includes('#DOCMAP_v0.0.1:');
+                  if (comment.value.includes('#DOCMAP_v0.0.1:')) {
+                    const location = nodePath.node.loc.start;
+                    const endLine = nodePath.node.loc.end.line;
+                    if (comment.loc.start.line === endLine) {
+                      const locationString = `Line: ${location.line}, Column: ${location.column}`;
+                      return false;
+                    }
+                  }
+                  return true;
                 });
             }
           },
