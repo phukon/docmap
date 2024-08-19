@@ -43,9 +43,9 @@ class FileProcessor {
       const isTargetComment = comment.value.includes('#DOCMAP_v0.0.1:');
       if (isTargetComment) {
         /**
-         * Extracts all content following the #DOCMAP_v0.0.1: tag and removes any leading asterisks. 
-         * It first isolates the content after the specified tag, then splits it into individual lines for processing. 
-         * Each line is cleaned by removing any leading asterisks (*) and spaces. Finally, the cleaned lines are 
+         * Extracts all content following the #DOCMAP_v0.0.1: tag and removes any leading asterisks.
+         * It first isolates the content after the specified tag, then splits it into individual lines for processing.
+         * Each line is cleaned by removing any leading asterisks (*) and spaces. Finally, the cleaned lines are
          * rejoined, with newline characters preserved, to maintain the original formatting.
          */
 
@@ -79,10 +79,30 @@ class FileProcessor {
                   ) {
                     const location = nodePath.node.loc.start;
                     // const locationString = `Line: ${location.line}, Column: ${location.column}`;
+                    const currentId = comment._docmapId;
                     commentLocations.push({
-                      docmapId: comment._docmapId,
+                      docmapId: currentId,
                       filePath,
                       loc: location,
+                    });
+                    // a comment can be a leading comment for one node and trailing comment for another
+                    path.traverse({
+                      enter(innerPath) {
+                        if (innerPath.node.leadingComments) {
+                          innerPath.node.leadingComments =
+                            innerPath.node.leadingComments.filter(
+                              (innerComment) =>
+                                innerComment._docmapId !== currentId
+                            );
+                        }
+                        if (innerPath.node.trailingComments) {
+                          innerPath.node.trailingComments =
+                            innerPath.node.trailingComments.filter(
+                              (innerComment) =>
+                                innerComment._docmapId !== currentId
+                            );
+                        }
+                      },
                     });
                     return false;
                   }
@@ -97,10 +117,29 @@ class FileProcessor {
                     const endLine = nodePath.node.loc.end.line;
                     if (comment.loc.start.line === endLine) {
                       // const locationString = `Line: ${location.line}, Column: ${location.column}`;
+                      const currentId = comment._docmapId;
                       commentLocations.push({
-                        docmapId: comment._docmapId,
+                        docmapId: currentId,
                         filePath,
                         loc: location,
+                      });
+                      path.traverse({
+                        enter(innerPath) {
+                          if (innerPath.node.leadingComments) {
+                            innerPath.node.leadingComments =
+                              innerPath.node.leadingComments.filter(
+                                (innerComment) =>
+                                  innerComment._docmapId !== currentId
+                              );
+                          }
+                          if (innerPath.node.trailingComments) {
+                            innerPath.node.trailingComments =
+                              innerPath.node.trailingComments.filter(
+                                (innerComment) =>
+                                  innerComment._docmapId !== currentId
+                              );
+                          }
+                        },
                       });
                       return false;
                     }
@@ -159,7 +198,12 @@ class FileProcessor {
   }
 
   writeCollectedComments(readmeFilePath) {
-    const commentsContent = collectedComments
+    const filteredComments = collectedComments.filter((comment) =>
+      commentLocations.some(
+        (location) => location.docmapId === comment.docmapId
+      )
+    );
+    const commentsContent = filteredComments
       .map((item) => item.text)
       .join('\n\n');
     fs.writeFileSync(readmeFilePath, commentsContent);
@@ -178,14 +222,17 @@ class FileProcessor {
         const lines = comment.text.split('\n');
         lines.forEach((_, i) => {
           map.addMapping({
-            generated: { line: line + 2*i, column: 0 },
+            generated: { line: line + 2 * i, column: 0 },
             source: location.filePath,
             original: { line: location.loc.line, column: 0 },
             name: null,
           });
         });
         line += lines.length + 1; // +1 for the blank line between comments
-        const sourceContent = fs.readFileSync('./samples/comment-loc/c.tsx', 'utf-8');
+        const sourceContent = fs.readFileSync(
+          './samples/comment-loc/c.tsx',
+          'utf-8'
+        );
         map.setSourceContent(location.filePath, sourceContent);
       }
     });
