@@ -210,6 +210,13 @@ class FileProcessor {
     console.log(`Comments written to ${readmeFilePath}`);
   }
 
+
+// **Interpreting the mappings entries (Base 64 VLQ)**
+// - [0]: Column index in the compiled file
+// - [1]: What original source file the location in the compiled source maps to
+// - [2]: Row index in the original source file (i.e. the line number)
+// - [3]: Column index in the original source file
+
   generateSourceMap(sourceMapFilePath) {
     const map = new SourceMapGenerator({ file: readmeFilePath });
 
@@ -222,13 +229,13 @@ class FileProcessor {
         const lines = comment.text.split('\n');
         lines.forEach((_, i) => {
           map.addMapping({
-            generated: { line: line + 2 * i, column: 0 },
+            generated: { line: line + i, column: 0 },
             source: location.filePath,
             original: { line: location.loc.line, column: 0 },
             name: null,
           });
         });
-        line += lines.length + 1; // +1 for the blank line between comments
+        line += lines.length + 1 // +1 for the blank line between comments
         const sourceContent = fs.readFileSync(
           './samples/comment-loc/c.tsx',
           'utf-8'
