@@ -10,8 +10,13 @@
 // **Interpreting the mappings entries (Base 64 VLQ)**
 // - [0]: Column index in the compiled file
 // - [1]: What original source file the location in the compiled source maps to
-// - [2]: Row index in the original source file (i.e. the line number)
+// - [2]: Row index in the original source file (i.e. the line number in offsets ⚠)
 // - [3]: Column index in the original source file
+
+/** ⚠ Regarding offsets
+ * If the previous mapping was on line n in the original source code,
+ * then "AAGA" would map to line n + 3.
+ */
 const prettier = require('prettier');
 const parser = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
@@ -21,7 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { SourceMapGenerator } = require('source-map');
-const sourceCodeDir = './test';
+const sourceCodeDir = './samples';
 const readmeFilePath = './README.md';
 const sourceMapFilePath = './README.map.json';
 let collectedComments = [];
@@ -276,12 +281,21 @@ class FileProcessor {
   generateSourceMap(sourceMapFilePath) {
     const map = new SourceMapGenerator({ file: readmeFilePath });
     let line = 1;
-    let offset = 0;
+    let fileOffsets = {}; // to store offsets for each file
+
     collectedComments.forEach((comment) => {
       const location = commentLocations.find(
         (loc) => loc.docmapId === comment.docmapId
       );
       if (location) {
+        // Initialize offset for this file if it doesn't exist
+        if (!fileOffsets[location.filePath]) {
+          fileOffsets[location.filePath] = 0;
+        }
+
+        // Use the file-specific offset
+        let offset = fileOffsets[location.filePath];
+
         // Increase offset by 1 if there's a blank line before the comment
         if (location.hasBlankLineBefore) {
           offset += 1;
@@ -290,9 +304,10 @@ class FileProcessor {
         const lines = comment.text.split('\n');
         if (lines.length > 1) {
           offset += lines.length + 3; // the starting chars + the tag +  the ending chars = 3
-        } else if (lines.length === 1 && comment.isMultiline) { // Inline comments and Comment blocks can still have one line after parsing
+        } else if (lines.length === 1 && comment.isMultiline) {
           offset += 3;
         }
+
         lines.forEach((_, i) => {
           let mapping = {
             generated: { line: line + i, column: 0 },
@@ -312,6 +327,10 @@ class FileProcessor {
           // });
         });
         line += lines.length + 1; // +1 for the blank line between comments
+        
+        // Update the file-specific offset
+        fileOffsets[location.filePath] = offset;
+
         const sourceContent = fs.readFileSync(location.filePath, 'utf-8');
         map.setSourceContent(location.filePath, sourceContent);
       }
