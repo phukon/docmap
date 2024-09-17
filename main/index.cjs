@@ -282,6 +282,7 @@ class FileProcessor {
     const map = new SourceMapGenerator({ file: readmeFilePath });
     let line = 1;
     let fileOffsets = {}; // to store offsets for each file
+    let processedFiles = new Set();
 
     collectedComments.forEach((comment) => {
       const location = commentLocations.find(
@@ -328,12 +329,15 @@ class FileProcessor {
         });
         line += lines.length + 1; // +1 for the blank line between comments
         
-        // Update the file-specific offset
         fileOffsets[location.filePath] = offset;
 
-        const sourceContent = fs.readFileSync(location.filePath, 'utf-8');
-        map.setSourceContent(location.filePath, sourceContent);
+        processedFiles.add(location.filePath);
       }
+    });
+
+    processedFiles.forEach((filePath) => {
+      const sourceContent = fs.readFileSync(filePath, 'utf-8');
+      map.setSourceContent(filePath, sourceContent);
     });
 
     fs.writeFileSync(sourceMapFilePath, map.toString());
@@ -348,8 +352,9 @@ class FileProcessor {
   const fileProcessor = new FileProcessor(sourceCodeDir, sourceCodeDir);
   fileProcessor.traverseDirectory(sourceCodeDir);
   fileProcessor.writeCollectedComments(readmeFilePath);
-  fileProcessor.generateSourceMap(sourceMapFilePath);
 
   console.log('Running Prettier Formatter After Codemod...');
   await formatDirectory(sourceCodeDir);
+
+  fileProcessor.generateSourceMap(sourceMapFilePath);
 })();
