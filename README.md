@@ -1,4 +1,15 @@
-# Docmap
+<div align="center">
+  <br />
+  <br />
+  <h1>Docmap 🗺</h1>
+  <p>
+     A powerful tool for managing documentation comments in source code
+  </p>
+  <br />
+  <br />
+  <br />
+  <br />
+</div>
 
 Docmap is a powerful tool for managing documentation comments in source code. It:
 
@@ -114,11 +125,6 @@ class UserService {
   }
 }
 ```
-
-## TODO:
-- the sourcecontent field should have the code just before codemod but after the prettier formatting
-- convert to typescript
-
 
 ## Contributing
 
